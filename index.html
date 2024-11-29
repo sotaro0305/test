@@ -1,0 +1,579 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シームレス音楽プレイヤー</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 30px;
+            background: linear-gradient(135deg, #1e2024 0%, #17181c 100%);
+            color: #fff;
+            position: relative;
+            z-index: 1;
+        }
+
+        .track-list {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 25px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+        max-height: 500px;
+        overflow-y: auto;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        backdrop-filter: blur(4px);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+
+        .track-button {
+        display: block;
+        width: 100%;
+        padding: 15px;
+        margin: 8px 0;
+        border: none;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        text-align: left;
+        cursor: pointer;
+        color: #fff;
+        transition: all 0.3s ease;
+        }
+
+        .track-button:hover {
+        background: rgba(255, 255, 255, 0.1);
+        transform: translateX(5px);
+        }
+
+        .track-button.active {
+        background: linear-gradient(45deg, #2196f3, #00bcd4);
+        color: white;
+        }
+
+        .track-button.next {
+        background: rgba(33, 150, 243, 0.2);
+        border: 1px solid rgba(33, 150, 243, 0.3);
+        }
+
+        .player-controls {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 25px;
+        border-radius: 15px;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        backdrop-filter: blur(4px);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+
+        .control-buttons {
+        display: flex;
+        gap: 15px;
+        margin: 15px 0;
+        }
+
+        .control-button {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        background: linear-gradient(45deg, #2196f3, #00bcd4);
+        color: white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        }
+
+        .control-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(33, 150, 243, 0.3);
+        }
+
+        .control-button.stop {
+        background: linear-gradient(45deg, #ff5252, #f48fb1);
+        }
+
+        .control-button.stop:hover {
+        box-shadow: 0 5px 15px rgba(255, 82, 82, 0.3);
+        }
+
+        .seek-control {
+        width: 100%;
+        margin: 15px 0;
+        }
+
+        .seek-bar {
+        width: 100%;
+        height: 5px;
+
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        outline: none;
+        margin: 10px 0;
+        }
+
+        .seek-bar::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 15px;
+        height: 15px;
+        background: #2196f3;
+        border-radius: 50%;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        }
+
+        .seek-bar::-webkit-slider-thumb:hover {
+        transform: scale(1.2);
+        background: #00bcd4;
+        }
+
+        .time-display {
+        display: flex;
+        justify-content: space-between;
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.7);
+        font-weight: 500;
+        }
+
+        #nowPlaying {
+        font-size: 18px;
+        margin-bottom: 15px;
+        color: #fff;
+        font-weight: 500;
+        }
+
+        h1 {
+        color: #fff;
+        font-size: 32px;
+        margin-bottom: 30px;
+        text-align: center;
+        font-weight: 600;
+        letter-spacing: 1px;
+        }
+
+        ::-webkit-scrollbar {
+        width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+        background: rgba(33, 150, 243, 0.5);
+        border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+        background: rgba(33, 150, 243, 0.7);
+        }
+
+
+        /* スタイル追加 */
+        .control-button.auto {
+            background: linear-gradient(45deg, #4caf50, #8bc34a);
+        }
+
+        .control-button.auto.active {
+            background: linear-gradient(45deg, #ff9800, #ffc107);
+        }
+
+        .control-button.auto:hover {
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+        }
+
+
+
+
+        #visualizer-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.7;
+        }
+
+        #visualizer {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* コンテンツの背景を少し透過させる */
+        .track-list, .player-controls {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(8px);
+        }
+    </style>
+</head>
+<body>
+
+
+    <div id="visualizer-container">
+        <canvas id="visualizer"></canvas>
+    </div>
+    <h1>シームレス音楽プレイヤー</h1>
+    
+    <div class="track-list" id="trackList"></div>
+
+    <div class="player-controls">
+        <div id="nowPlaying"></div>
+        <div class="seek-control">
+            <input type="range" id="seekBar" class="seek-bar" min="0" max="100" value="0">
+            <div class="time-display">
+                <span id="currentTime">0:00</span>
+                <span id="duration">0:00</span>
+            </div>
+        </div>
+        <!-- コントロールボタンに追加 -->
+        <div class="control-buttons">
+            <button id="playPauseButton" class="control-button">一時停止</button>
+            <button id="stopButton" class="control-button stop">停止</button>
+            <button id="resetButton" class="control-button">リセット</button>
+            <button id="autoPlayButton" class="control-button auto">自動再生: OFF</button>
+        </div>
+    </div>
+
+    <div id="debug"></div>
+
+    <script>
+        const tracks = [
+        { title: "00-01 Sesquifractal", url: "./public/audio/00-01-Sesquifractal.mp3" },
+        { title: "00-02 Refreqt", url: "./public/audio/00-02-Refreqt.mp3" },
+        { title: "00-03 Aefreq", url: "./public/audio/00-03-Aefreq.mp3" },
+        { title: "00-04 K-otonoha", url: "./public/audio/00-04-K-otonoha.mp3" },
+        { title: "00-05 Stir", url: "./public/audio/00-05-stir.mp3" },
+        { title: "00-06 Couper le vent", url: "./public/audio/00-06-Couper le vent.mp3" },
+        { title: "00-07 Madoromi Chronoscope", url: "./public/audio/00-07-Madoromi Chronoscope.mp3" },
+        { title: "00-08 Flip Up", url: "./public/audio/00-08-Flip Up.mp3" },
+        { title: "00-09 Cyanometer", url: "./public/audio/00-09-Cyanometer.mp3" },
+        { title: "00-10 海岸通り", url: "./public/audio/00-10-海岸通り.mp3" },
+        { title: "00-11 Lingered Summer", url: "./public/audio/00-11-lingered_summer.mp3" },
+        { title: "100-01 Sesquifractal (WAV)", url: "./public/audio/100-01-Sesquifractal.wav" },
+        { title: "200-01 Sesquifractal (WAV)", url: "./public/audio/200-01-Sesquifractal.wav" },
+        { title: "300-01 Sesquifractal (WAV)", url: "./public/audio/300-01-Sesquifractal.wav" },
+        { title: "400-01 Sesquifractal (WAV)", url: "./public/audio/400-01-Sesquifractal.wav" },
+        { title: "500-01 Sesquifractal (WAV)", url: "./public/audio/500-01-Sesquifractal.wav" },
+        { title: "600-01 Sesquifractal (WAV)", url: "./public/audio/600-01-Sesquifractal.wav" },
+        { title: "700-01 Sesquifractal (WAV)", url: "./public/audio/700-01-Sesquifractal.wav" },
+        { title: "10秒の無音", url: "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAA=" },
+        { title: "Symmetori_Komorebi_loop.ogg", url: "./public/audio/Symmetori_Komorebi_loop.ogg" },
+        { title: "Couper le vent (Loop 1)", url: "./public/audio/Couper_le_vent_loop1.mp3" },
+        { title: "Couper le vent (Loop 2)", url: "./public/audio/Couper_le_vent_loop2.mp3" },
+        { title: "Flip Up (Loop 1)", url: "./public/audio/Flip_Up_loop1.mp3" },
+        { title: "Flip Up (Loop 2)", url: "./public/audio/Flip_Up_loop2.mp3" },
+        { title: "Flip Up (Loop 3)", url: "./public/audio/Flip_Up_loop3.mp3" },
+        { title: "Madoromi Chronoscope (Loop)", url: "./public/audio/Madoromi_Chronoscope_loop.mp3" },
+        { title: "Refreqt (No Percussion)", url: "./public/audio/Refreqt_loop1_no_percussion.mp3" },
+        { title: "Refreqt (Loop 1)", url: "./public/audio/Refreqt_loop1.mp3" },
+        { title: "Sesquifractal (Loop 1)", url: "./public/audio/Sesquifractal_loop1.mp3" },
+        { title: "Sesquifractal (Loop 2)", url: "./public/audio/Sesquifractal_loop2.mp3" },
+        { title: "Sesquifractal (Loop 3)", url: "./public/audio/Sesquifractal_loop3.mp3" },
+        { title: "USAO  Climax", url: "./public/audio/y2mate.com - USAO  Climax.mp3" },
+        { title: "utomp3.com - How To Make 音ゲ曲 BOFNT", url: "./public/audio/utomp3.com - How To Make 音ゲ曲 BOFNT.mp3" }
+
+        ];
+
+        let currentTrackIndex = null;
+        let nextTrackIndex = null;
+        let isAutoPlay = false;
+        const trackList = document.getElementById('trackList');
+        const nowPlaying = document.getElementById('nowPlaying');
+        const debug = document.getElementById('debug');
+        const playPauseButton = document.getElementById('playPauseButton');
+        const stopButton = document.getElementById('stopButton');
+        const resetButton = document.getElementById('resetButton');
+        const autoPlayButton = document.getElementById('autoPlayButton');
+        const seekBar = document.getElementById('seekBar');
+        const currentTimeDisplay = document.getElementById('currentTime');
+        const durationDisplay = document.getElementById('duration');
+
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const playerA = new Audio();
+        const playerB = new Audio();
+        let currentPlayer = playerA;
+        let nextPlayer = playerB;
+
+        const gainNodeA = audioContext.createGain();
+        const gainNodeB = audioContext.createGain();
+        const sourceA = audioContext.createMediaElementSource(playerA);
+        const sourceB = audioContext.createMediaElementSource(playerB);
+        sourceA.connect(gainNodeA).connect(audioContext.destination);
+        sourceB.connect(gainNodeB).connect(audioContext.destination);
+
+        function formatTime(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function updateSeekBar() {
+        if (!isNaN(currentPlayer.duration)) {
+            seekBar.value = (currentPlayer.currentTime / currentPlayer.duration) * 100;
+            currentTimeDisplay.textContent = formatTime(currentPlayer.currentTime);
+            durationDisplay.textContent = formatTime(currentPlayer.duration);
+        }
+        }
+
+        function selectTrack(index) {
+        if (currentTrackIndex === null) {
+            currentTrackIndex = index;
+            currentPlayer.src = tracks[index].url;
+            currentPlayer.play().catch(error => {
+                debug.textContent = `Error: ${error.message}`;
+            });
+            currentPlayer.addEventListener('timeupdate', updateSeekBar);
+            playPauseButton.textContent = '一時停止';
+            nowPlaying.textContent = `再生中: ${tracks[index].title}`;
+
+            if (isAutoPlay) {
+                const nextIndex = (index + 1) % tracks.length;
+                nextTrackIndex = nextIndex;
+                nextPlayer.src = tracks[nextIndex].url;
+                nextPlayer.load();
+            }
+        } else {
+            nextTrackIndex = index;
+            nextPlayer.src = tracks[index].url;
+            nextPlayer.load();
+        }
+        updateTrackButtons();
+        }
+
+        function switchPlayers() {
+        [currentPlayer, nextPlayer] = [nextPlayer, currentPlayer];
+        currentTrackIndex = nextTrackIndex;
+        nextTrackIndex = null;
+        
+        currentPlayer.play().catch(error => {
+            debug.textContent = `Error: ${error.message}`;
+        });
+        
+        currentPlayer.removeEventListener('timeupdate', updateSeekBar);
+        currentPlayer.addEventListener('timeupdate', updateSeekBar);
+        
+        playPauseButton.textContent = '一時停止';
+        nowPlaying.textContent = `再生中: ${tracks[currentTrackIndex].title}`;
+
+        if (isAutoPlay) {
+            const nextIndex = (currentTrackIndex + 1) % tracks.length;
+            nextTrackIndex = nextIndex;
+            nextPlayer.src = tracks[nextIndex].url;
+            nextPlayer.load();
+        }
+
+        updateTrackButtons();
+        }
+
+        function updateTrackButtons() {
+        const buttons = document.querySelectorAll('.track-button');
+        buttons.forEach((button, index) => {
+            button.classList.remove('active', 'next');
+            if (index === currentTrackIndex) {
+                button.classList.add('active');
+            } else if (index === nextTrackIndex) {
+                button.classList.add('next');
+            }
+        });
+        }
+
+        playPauseButton.addEventListener('click', () => {
+        if (currentTrackIndex === null) return;
+        
+        if (currentPlayer.paused) {
+            currentPlayer.play();
+            playPauseButton.textContent = '一時停止';
+        } else {
+            currentPlayer.pause();
+            playPauseButton.textContent = '再生';
+        }
+        });
+
+        stopButton.addEventListener('click', () => {
+        if (currentTrackIndex === null) return;
+        
+        currentPlayer.pause();
+        currentPlayer.currentTime = 0;
+        playPauseButton.textContent = '再生';
+        updateSeekBar();
+        });
+
+        resetButton.addEventListener('click', () => {
+        currentPlayer.pause();
+        nextPlayer.pause();
+        currentTrackIndex = null;
+        nextTrackIndex = null;
+        currentPlayer.currentTime = 0;
+        nextPlayer.currentTime = 0;
+        currentPlayer.src = '';
+        nextPlayer.src = '';
+        nowPlaying.textContent = '';
+        playPauseButton.textContent = '再生';
+        seekBar.value = 0;
+        currentTimeDisplay.textContent = '0:00';
+        durationDisplay.textContent = '0:00';
+        isAutoPlay = false;
+        autoPlayButton.textContent = '自動再生: OFF';
+        autoPlayButton.classList.remove('active');
+        updateTrackButtons();
+        });
+
+        autoPlayButton.addEventListener('click', () => {
+        isAutoPlay = !isAutoPlay;
+        autoPlayButton.textContent = `自動再生: ${isAutoPlay ? 'ON' : 'OFF'}`;
+        autoPlayButton.classList.toggle('active', isAutoPlay);
+        
+        if (isAutoPlay && currentTrackIndex !== null) {
+            const nextIndex = (currentTrackIndex + 1) % tracks.length;
+            nextTrackIndex = nextIndex;
+            nextPlayer.src = tracks[nextIndex].url;
+            nextPlayer.load();
+            updateTrackButtons();
+        }
+        });
+
+        seekBar.addEventListener('input', (e) => {
+        if (currentPlayer && !isNaN(currentPlayer.duration)) {
+            const time = (e.target.value / 100) * currentPlayer.duration;
+            currentPlayer.currentTime = time;
+        }
+        });
+
+        tracks.forEach((track, index) => {
+        const button = document.createElement('button');
+        button.className = 'track-button';
+        button.textContent = track.title;
+        button.onclick = () => selectTrack(index);
+        trackList.appendChild(button);
+        });
+
+        playerA.addEventListener('ended', () => {
+        if (nextTrackIndex !== null) {
+            switchPlayers();
+        } else {
+            currentPlayer.currentTime = 0;
+            currentPlayer.play();
+        }
+        });
+
+        playerB.addEventListener('ended', () => {
+        if (nextTrackIndex !== null) {
+            switchPlayers();
+        } else {
+            currentPlayer.currentTime = 0;
+            currentPlayer.play();
+        }
+        });
+
+        playerA.addEventListener('error', (e) => {
+        debug.textContent = `Error on Player A: ${e.target.error?.message || 'Unknown error'}`;
+        });
+
+        playerB.addEventListener('error', (e) => {
+        debug.textContent = `Error on Player B: ${e.target.error?.message || 'Unknown error'}`;
+        });
+
+        function updatePlaybackStatus() {
+        if (currentTrackIndex !== null) {
+            const track = tracks[currentTrackIndex];
+            nowPlaying.textContent = `再生中: ${track.title}`;
+        }
+        }
+
+
+
+
+
+
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+        const analyzerA = audioContext.createAnalyser();
+        const analyzerB = audioContext.createAnalyser();
+        
+        // アナライザーの設定
+        analyzerA.fftSize = 2048;
+        analyzerB.fftSize = 2048;
+        const bufferLength = analyzerA.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+
+        // アナライザーをオーディオチェーンに接続
+        sourceA.connect(analyzerA);
+        sourceB.connect(analyzerB);
+
+        // キャンバスのサイズを設定
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // ビジュアライザーの描画
+        function draw() {
+            requestAnimationFrame(draw);
+
+            const currentAnalyzer = currentPlayer === playerA ? analyzerA : analyzerB;
+            currentAnalyzer.getByteFrequencyData(dataArray);
+
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const barWidth = (canvas.width / bufferLength) * 2.5;
+            let x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                const barHeight = dataArray[i] * 2;
+                
+                // HSL色空間を使用してカラフルな色を生成
+                const hue = (i / bufferLength) * 360;
+                ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+
+                // 円形のビジュアライザーを描画
+                const angle = (i / bufferLength) * Math.PI * 2;
+                const radius = Math.min(canvas.width, canvas.height) * 0.3;
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                
+                const innerRadius = radius + (barHeight * 0.5);
+                const outerRadius = radius + (barHeight * 0.8);
+                
+                ctx.beginPath();
+                ctx.arc(
+                    centerX + Math.cos(angle) * innerRadius,
+                    centerY + Math.sin(angle) * innerRadius,
+                    3,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fill();
+                
+                // 外側の円も描画
+                ctx.beginPath();
+                ctx.arc(
+                    centerX + Math.cos(angle) * outerRadius,
+                    centerY + Math.sin(angle) * outerRadius,
+                    2,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fill();
+
+                x += barWidth;
+            }
+        }
+
+        draw();
+
+
+
+
+
+
+        setInterval(updatePlaybackStatus, 1000);
+    </script>
+</body>
+</html>
